@@ -1,0 +1,123 @@
+<div {{ attributes }} class="container mt-4 p-4 border rounded shadow-sm bg-light">
+    <h2 class="mb-3 text-center">Ma Todo List avec LiveComponent</h2>
+
+   
+    <!-- LIST -->
+    <ul class="list-group mb-5">
+         <h1 class="text-muted">
+            Total: {{ this.totalTodos }}
+         </h1>
+    
+        {% for todo in this.getFilteredTodos() %}
+            <li 
+                class="list-group-item d-flex justify-content-between align-items-center py-3"
+                key="todo-{{ loop.index0 }}-{{ this.editingIndex == loop.index0 ? 'edit' : 'view' }}"
+            >
+
+                <div class="d-flex align-items-center flex-grow-1">
+                    <!-- CHECKBOX -->
+                    <input
+                        class="form-check-input me-3"
+                        type="checkbox"
+                        {% if todo.done %}checked{% endif %}
+                        data-action="live#action"
+                        data-live-action-param="toggleTodo"
+                        data-live-index-param="{{ loop.index0 }}"
+                    >
+
+                    <!-- CONTENT -->
+                    <div class="flex-grow-1">
+
+                        {% if this.editingIndex is not null and this.editingIndex == loop.index0 %}
+                            <!-- EDIT -->
+                            <div id="edit-{{ loop.index0 }}">
+
+                                <div class="d-flex gap-2">
+                                    <input
+                                        type="text"
+                                        class="form-control form-control-sm"
+                                        data-model="editingTitle"
+                                        data-model-debounce="400"
+                                        autofocus
+                                    >
+
+                                    <button
+                                        class="btn btn-sm btn-success"
+                                        data-action="live#action"
+                                        data-live-action-param="saveEdit"
+                                        data-live-index-param="{{ loop.index0 }}"
+                                    >
+                                        Enregistrer
+                                    </button>
+
+                                    <button
+                                        class="btn btn-sm btn-outline-secondary"
+                                        data-action="live#action"
+                                        data-live-action-param="cancelEdit"
+                                    >
+                                        Annuler
+                                    </button>
+                                </div>
+
+                            </div>
+                        {% else %}
+                            <!-- VIEW -->
+                            <div id="view-{{ loop.index0 }}">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="flex-grow-1 {{ todo.done ? 'text-decoration-line-through text-muted' : '' }}">
+                                        {{ todo.title }}
+                                    </span>
+
+                                    <button
+                                        class="btn btn-sm btn-outline-primary"
+                                        data-action="live#action"
+                                        data-live-action-param="startEdit"
+                                        data-live-index-param="{{ loop.index0 }}"
+                                    >
+                                        Modifier
+                                    </button>
+                                </div>
+                            </div>
+                        {% endif %}
+                </div>
+
+                <!-- DELETE -->
+                <button
+                    class="btn btn-sm btn-danger ms-2"
+                    data-action="live#action"
+                    data-live-action-param="removeTodo"
+                    data-live-index-param="{{ loop.index0 }}"
+                >
+                    Supprimer
+                </button>
+
+            </li>
+        {% else %}
+            <li class="list-group-item text-muted text-center py-4">
+                Aucune tâche pour le moment...
+            </li>
+        {% endfor %}
+    </ul>
+
+    <!-- ADD -->
+    <div class="input-group input-group-lg">
+        <input
+            type="text"
+            class="form-control"
+            placeholder="Nouvelle tâche..."
+            data-model="newTodo"
+            data-model-debounce="300"
+            data-action="keydown.enter->live#action"
+            data-live-action-param="addTodo"
+        >
+
+        <button
+            class="btn btn-primary"
+            data-action="live#action"
+            data-live-action-param="addTodo"
+            {% if this.newTodo|trim is empty %}disabled{% endif %}
+        >
+            Ajouter
+        </button>
+    </div>
+</div>
