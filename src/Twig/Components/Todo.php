@@ -2,13 +2,14 @@
 
 namespace App\Twig\Components;
 
+use App\Entity\Todos as TodoEntity;
+use App\Repository\TodosRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveArg;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\Attribute\PostHydrate;
-use Symfony\UX\LiveComponent\Attribute\PreDehydrate;
-use Symfony\UX\LiveComponent\Attribute\PreReRender;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 
 #[AsLiveComponent('Todo')]
@@ -16,160 +17,149 @@ class Todo
 {
     use DefaultActionTrait;
 
-    #[LiveProp(writable: true)]
-    public array $todos = [];
+    public function __construct(
+        private readonly TodosRepository $todosRepository,
+        private readonly EntityManagerInterface $em
+    ) {}
 
+    // ==================== Propriétés Live ====================
     #[LiveProp(writable: true)]
     public string $newTodo = '';
 
     #[LiveProp(writable: true)]
-    public ?int $editingIndex = null;
+    public string $search = '';
+
+    #[LiveProp(writable: true)]
+    public ?int $editingId = null;
 
     #[LiveProp(writable: true)]
     public string $editingTitle = '';
 
-    #[LiveProp(writable: true)]
-    public string $editingValue = '';
-
-    //  BONUS UI
+    // Données
+    public array $todos = [];
     public int $totalTodos = 0;
-    
-    #[LiveProp(writable: true)]
-    public string $search = '';
+    public int $remaining = 0;
+    public int $completedCount = 0;
 
-    // Ajout
+    // ==================== Initialisation & Chargement ====================
+    public function mount(): void
+    {
+        $this->loadTodos();
+    }
+
+    #[PostHydrate]
+    public function loadTodos(): void
+    {
+        $query = $this->todosRepository->createQueryBuilder('t');
+
+        if ($this->search !== '') {
+            $query->andWhere('t.title LIKE :search')
+                  ->setParameter('search', '%' . $this->search . '%');
+        }
+
+        $this->todos = $query->orderBy('t.createdAt', 'DESC')
+                             ->getQuery()
+                             ->getResult();
+
+        $this->totalTodos = count($this->todos);
+        $this->remaining = count(array_filter($this->todos, fn($t) => !$t->isDone()));
+        $this->completedCount = $this->totalTodos - $this->remaining;
+    }
+
+    // ==================== Actions ====================
     #[LiveAction]
     public function addTodo(): void
     {
         $title = trim($this->newTodo);
 
-        if (strlen($title) < 2) {
+        if (strlen($title) < 5) {
             return; 
         }
 
-        $this->todos[] = [
-            'title' => $title,
-            'done'  => false,
-        ];
+        $todo = new TodoEntity();
+        $todo->setTitle($title)
+             ->setDone(false)
+             ->setCreatedAt(new \DateTimeImmutable());
 
+        $this->em->persist($todo);
+        $this->em->flush();
+
+        // Réinitialisation du champ
         $this->newTodo = '';
 
-        // TRÈS IMPORTANT
-        $this->editingIndex = null;
-        $this->editingTitle = '';
-        
+        // IMPORTANT : on recharge les données pour que LiveComponent mette à jour l'interface
+        $this->loadTodos();
     }
 
-    //  Toggle
     #[LiveAction]
-    public function toggleTodo(#[LiveArg] int $index): void
+    public function refresh(): void
     {
-        if (isset($this->todos[$index])) {
-            $this->todos[$index]['done'] = !$this->todos[$index]['done'];
+        // Cette méthode ne fait rien d’autre que recharger les données
+        $this->loadTodos();
+    }
+
+    #[LiveAction]
+    public function clearSearch(): void
+    {
+        $this->search = '';
+        $this->loadTodos();   
+    }
+
+    #[LiveAction]
+    public function toggleTodo(#[LiveArg] int $id): void
+    {
+        $todo = $this->todosRepository->find($id);
+        if ($todo) {
+            $todo->setDone(!$todo->isDone())
+                 ->setUpdatedAt(new \DateTimeImmutable());
+            $this->em->flush();
+        }
+        $this->loadTodos();       
+    }
+
+    #[LiveAction]
+    public function removeTodo(#[LiveArg] int $id): void
+    {
+        $todo = $this->todosRepository->find($id);
+        if ($todo) {
+            $this->em->remove($todo);
+            $this->em->flush();
+        }
+        $this->loadTodos();
+    }
+
+    #[LiveAction]
+    public function startEdit(#[LiveArg] int $id): void
+    {
+        $todo = $this->todosRepository->find($id);
+        if ($todo) {
+            $this->editingId = $todo->getId();
+            $this->editingTitle = $todo->getTitle();
         }
     }
 
-    // Supprimer
     #[LiveAction]
-    public function removeTodo(#[LiveArg] int $index): void
+    public function saveEdit(): void
     {
-        if (!isset($this->todos[$index])) return;
+        if (!$this->editingId) return;
 
-        array_splice($this->todos, $index, 1);
-
-        // Ajustement édition
-        if ($this->editingIndex === $index) {
-            $this->cancelEdit();
-        } elseif ($this->editingIndex > $index) {
-            $this->editingIndex--;
+        $todo = $this->todosRepository->find($this->editingId);
+        if ($todo) {
+            $title = trim($this->editingTitle);
+            if (strlen($title) >= 2) {
+                $todo->setTitle($title)
+                     ->setUpdatedAt(new \DateTimeImmutable());
+                $this->em->flush();
+            }
         }
-    }
-
-    // Start edit
-    #[LiveAction]
-    public function startEdit(#[LiveArg] int $index): void
-    {
-        if (!isset($this->todos[$index])) return;
-
-        $this->editingIndex = $index;
-        $this->editingTitle = $this->todos[$index]['title'];
-    }
-
-    //  Save edit
-    #[LiveAction]
-    public function saveEdit(#[LiveArg] int $index): void
-    {
-        $title = trim($this->editingTitle);
-
-        if (strlen($title) < 2) {
-            return;
-        }
-
-        if (isset($this->todos[$index])) {
-            $this->todos[$index]['title'] = $title;
-        }
-
         $this->cancelEdit();
+        $this->loadTodos();
     }
 
-    //  Cancel
     #[LiveAction]
     public function cancelEdit(): void
     {
-        $this->editingIndex = null;
+        $this->editingId = null;
         $this->editingTitle = '';
-    }
-    
-    // Computed pour la recherche
-    public function getFilteredTodos(): array
-    {
-        if ($this->search === '') {
-            return $this->todos;
-        }
-
-        return array_filter($this->todos, function ($todo) {
-            return str_contains(
-                strtolower($todo['title']),
-                strtolower($this->search)
-            );
-        });
-    }
-
-     // Total
-    public function getTotalTodos(): int
-    {
-        return count($this->todos);
-    }
-
-     // =========================
-    //  LIFECYCLE HOOKS
-    // =========================
-
-    //  1. Après réception des données du frontend
-    #[PostHydrate]
-    public function sanitize()
-    {
-        // Nettoyage des inputs
-        $this->newTodo = trim($this->newTodo);
-        $this->editingValue = trim($this->editingValue);
-    }
-
-    // 2. Avant d'envoyer au frontend
-    #[PreDehydrate]
-    public function prepareData()
-    {
-        // Réindexer le tableau (important après delete)
-        $this->todos = array_values($this->todos);
-
-        // Supprimer les entrées vides
-        $this->todos = array_filter($this->todos, fn($t) => $t !== '');
-    }
-
-    // 3. Juste avant le rendu Twig
-    #[PreReRender]
-    public function prepareView()
-    {
-        // Calcul pour affichage
-        $this->totalTodos = count($this->todos);
     }
 }
