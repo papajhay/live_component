@@ -1,96 +1,117 @@
 <div {{ attributes }} class="container mt-4 p-4 border rounded shadow-sm bg-light">
     <h2 class="mb-3 text-center">Ma Todo List avec LiveComponent</h2>
 
-   
-    <!-- LIST -->
-    <ul class="list-group mb-5">
-         <h1 class="text-muted">
-            Total: {{ this.totalTodos }}
-         </h1>
-    
-        {% for todo in this.getFilteredTodos() %}
-            <li 
-                class="list-group-item d-flex justify-content-between align-items-center py-3"
-                key="todo-{{ loop.index0 }}-{{ this.editingIndex == loop.index0 ? 'edit' : 'view' }}"
-            >
+    <!-- Statistiques -->
+    <div class="row mb-3 text-center">
+        <div class="col">
+            <h1 class="text-muted fs-5">
+                Total : <strong>{{ this.totalTodos }}</strong> |
+                Restantes : <strong class="text-danger">{{ this.remaining }}</strong> |
+                Terminées : <strong class="text-success">{{ this.completedCount }}</strong>
+            </h1>
+        </div>
+    </div>
 
+    <!-- ====================== BARRE DE RECHERCHE ====================== -->
+    <div class="d-flex flex-column flex-lg-row gap-2 mb-4">
+        <div class="flex-grow-1">
+            <!-- live action = "refresh" -->
+            <div class="input-group">
+                <input 
+                    type="text" 
+                    class="form-control"
+                    placeholder="Rechercher une tâche..."
+                    data-model="search"
+                    data-model-debounce="300"
+                    {{ live_action('refresh', {}, { event: 'keydown.enter' }) }}
+                >
+                <button 
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    {{ live_action('refresh') }}
+                >
+                    <i class="bi bi-search"></i> Rechercher
+                </button>
+            </div>
+        </div>
+
+        {% if this.search is not empty %}
+            <button 
+                type="button"
+                class="btn btn-outline-danger"
+                {{ live_action('clearSearch') }}
+            >
+                <i class="bi bi-x-lg"></i> Effacer
+            </button>
+        {% endif %}
+    </div>
+
+    <!-- Liste des tâches -->
+    <ul class="list-group mb-5">
+        {% for todo in this.todos %}
+            <li class="list-group-item d-flex justify-content-between align-items-center py-3">
                 <div class="d-flex align-items-center flex-grow-1">
-                    <!-- CHECKBOX -->
-                    <input
-                        class="form-check-input me-3"
+                    <!-- Checkbox live_action="toggleTodo"  -->
+                    <input 
                         type="checkbox"
-                        {% if todo.done %}checked{% endif %}
-                        data-action="live#action"
-                        data-live-action-param="toggleTodo"
-                        data-live-index-param="{{ loop.index0 }}"
+                        class="form-check-input me-3"
+                        {% if todo.isDone() %}checked{% endif %}
+                        {{ live_action('toggleTodo', { id: todo.getId() }) }}
                     >
 
-                    <!-- CONTENT -->
-                    <div class="flex-grow-1">
+                    {% if this.editingId == todo.getId() %}
+                        <!-- Mode édition -->
+                        <div class="d-flex flex-grow-1 gap-2">
+                            <input 
+                                type="text"
+                                class="form-control form-control-sm"
+                                data-model="editingTitle"
+                                data-model-debounce="300"
+                                autofocus
+                           >
+                            <!-- live_action="saveEdit" -->
+                            <button 
+                                type="button"
+                                class="btn btn-sm btn-success"
+                                {{ live_action('saveEdit') }}
+                            >
+                                Enregistrer
+                            </button>
 
-                        {% if this.editingIndex is not null and this.editingIndex == loop.index0 %}
-                            <!-- EDIT -->
-                            <div id="edit-{{ loop.index0 }}">
-
-                                <div class="d-flex gap-2">
-                                    <input
-                                        type="text"
-                                        class="form-control form-control-sm"
-                                        data-model="editingTitle"
-                                        data-model-debounce="400"
-                                        autofocus
-                                    >
-
-                                    <button
-                                        class="btn btn-sm btn-success"
-                                        data-action="live#action"
-                                        data-live-action-param="saveEdit"
-                                        data-live-index-param="{{ loop.index0 }}"
-                                    >
-                                        Enregistrer
-                                    </button>
-
-                                    <button
-                                        class="btn btn-sm btn-outline-secondary"
-                                        data-action="live#action"
-                                        data-live-action-param="cancelEdit"
-                                    >
-                                        Annuler
-                                    </button>
-                                </div>
-
-                            </div>
-                        {% else %}
-                            <!-- VIEW -->
-                            <div id="view-{{ loop.index0 }}">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="flex-grow-1 {{ todo.done ? 'text-decoration-line-through text-muted' : '' }}">
-                                        {{ todo.title }}
-                                    </span>
-
-                                    <button
-                                        class="btn btn-sm btn-outline-primary"
-                                        data-action="live#action"
-                                        data-live-action-param="startEdit"
-                                        data-live-index-param="{{ loop.index0 }}"
-                                    >
-                                        Modifier
-                                    </button>
-                                </div>
-                            </div>
-                        {% endif %}
+                            <!-- live_action="cancelEdit" -->
+                            <button 
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                {{ live_action('cancelEdit') }}
+                            >
+                                Annuler
+                            </button>
+                        </div>
+                    {% else %}
+                        <!-- Affichage normal -->
+                        <span class="flex-grow-1 {{ todo.isDone() ? 'text-decoration-line-through text-muted' : '' }}">
+                            {{ todo.getTitle() }}
+                        </span>
+                        <!-- live_action="startEdit" -->
+                        <button
+                             type="button"
+                            class="btn btn-sm btn-outline-primary ms-3"
+                            {{ live_action('startEdit', { id: todo.getId() }) }}
+                        >
+                            Modifier
+                        </button>
+                    {% endif %}
                 </div>
 
-                <!-- DELETE -->
-                <button
+                <!-- Bouton Supprimer -->
+                 <!-- live_action="removeTodo" -->
+                <button 
+                    type="button"
                     class="btn btn-sm btn-danger ms-2"
-                    data-action="live#action"
-                    data-live-action-param="removeTodo"
-                    data-live-index-param="{{ loop.index0 }}"
+                    {{ live_action('removeTodo', { id: todo.getId() }) }}
                 >
                     Supprimer
                 </button>
-
             </li>
         {% else %}
             <li class="list-group-item text-muted text-center py-4">
@@ -99,22 +120,20 @@
         {% endfor %}
     </ul>
 
-    <!-- ADD -->
+    <!-- Ajout d'une nouvelle tâche -->
     <div class="input-group input-group-lg">
-        <input
-            type="text"
-            class="form-control"
-            placeholder="Nouvelle tâche..."
-            data-model="newTodo"
-            data-model-debounce="300"
-            data-action="keydown.enter->live#action"
-            data-live-action-param="addTodo"
-        >
+        <input 
+           type="text"
+           class="form-control"
+           data-model="newTodo"
+           data-action="keydown.enter->live#action"
+           data-live-action-param="addTodo"
+       >
 
-        <button
+        <button 
+            type="button"
             class="btn btn-primary"
-            data-action="live#action"
-            data-live-action-param="addTodo"
+            {{ live_action('addTodo') }}
             {% if this.newTodo|trim is empty %}disabled{% endif %}
         >
             Ajouter
