@@ -1,0 +1,32 @@
+<div class="d-flex flex-column flex-lg-row gap-2 mb-4">
+        <div class="flex-grow-1">
+            <!-- live action = "refresh" -->
+            <div class="input-group">
+                <input 
+                    type="text" 
+                    class="form-control"
+                    placeholder="Rechercher une tâche..."
+                    data-model="search"
+                    data-model-debounce="300"
+                    {{ live_action('refresh', {}, { event: 'keydown.enter' }) }}
+                >
+                <button 
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    {{ live_action('refresh') }}
+                >
+                    <i class="bi bi-search"></i> Rechercher
+                </button>
+            </div>
+        </div>
+
+        {% if this.search is not empty %}
+            <button 
+                type="button"
+                class="btn btn-outline-danger"
+                {{ live_action('clearSearch') }}
+            >
+                <i class="bi bi-x-lg"></i> Effacer
+            </button>
+        {% endif %}
+    </div>

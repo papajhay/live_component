@@ -6,11 +6,11 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-class TodoController extends AbstractController
+class HomeController extends AbstractController
 {
-    #[Route('/todo', name: 'todo_index')]
+    #[Route('/', name: 'home')]
     public function index(): Response
     {
-        return $this->render('todo/index.html.twig');
+        return $this->render('home/index.html.twig');
     }
 }

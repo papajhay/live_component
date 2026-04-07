@@ -2,49 +2,13 @@
     <h2 class="mb-3 text-center">Ma Todo List avec LiveComponent</h2>
 
     <!-- Statistiques -->
-    <div class="row mb-3 text-center">
-        <div class="col">
-            <h1 class="text-muted fs-5">
-                Total : <strong>{{ this.totalTodos }}</strong> |
-                Restantes : <strong class="text-danger">{{ this.remaining }}</strong> |
-                Terminées : <strong class="text-success">{{ this.completedCount }}</strong>
-            </h1>
-        </div>
-    </div>
+    {{ component('TodoStats', {
+        total: this.totalTodos,
+        remaining: this.remaining,
+        completed: this.completedCount
+    }) }}
 
-    <!-- ====================== BARRE DE RECHERCHE ====================== -->
-    <div class="d-flex flex-column flex-lg-row gap-2 mb-4">
-        <div class="flex-grow-1">
-            <!-- live action = "refresh" -->
-            <div class="input-group">
-                <input 
-                    type="text" 
-                    class="form-control"
-                    placeholder="Rechercher une tâche..."
-                    data-model="search"
-                    data-model-debounce="300"
-                    {{ live_action('refresh', {}, { event: 'keydown.enter' }) }}
-                >
-                <button 
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    {{ live_action('refresh') }}
-                >
-                    <i class="bi bi-search"></i> Rechercher
-                </button>
-            </div>
-        </div>
-
-        {% if this.search is not empty %}
-            <button 
-                type="button"
-                class="btn btn-outline-danger"
-                {{ live_action('clearSearch') }}
-            >
-                <i class="bi bi-x-lg"></i> Effacer
-            </button>
-        {% endif %}
-    </div>
+   {{ component('TodoSearchForm', { search: this.search }) }}
 
     <!-- Liste des tâches -->
     <ul class="list-group mb-5">
@@ -121,22 +85,6 @@
     </ul>
 
     <!-- Ajout d'une nouvelle tâche -->
-    <div class="input-group input-group-lg">
-        <input 
-           type="text"
-           class="form-control"
-           data-model="newTodo"
-           data-action="keydown.enter->live#action"
-           data-live-action-param="addTodo"
-       >
-
-        <button 
-            type="button"
-            class="btn btn-primary"
-            {{ live_action('addTodo') }}
-            {% if this.newTodo|trim is empty %}disabled{% endif %}
-        >
-            Ajouter
-        </button>
-    </div>
+     {#<twig:TodoForm/>#}
+     {{ component('TodoForm') }}
 </div>
