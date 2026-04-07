@@ -1,0 +1,18 @@
+<div class="input-group input-group-lg">
+     <input 
+         type="text"
+         class="form-control"
+         data-model="newTodo"
+         data-action="keydown.enter->live#action"
+         data-live-action-param="addTodo"
+      >
+        <!-- live_action="addTodo" -->
+      <button 
+          type="button"
+          class="btn btn-primary"
+          {{ live_action('addTodo') }}
+          {% if this.newTodo|trim is empty %}disabled{% endif %}
+        >
+            Ajouter
+        </button>
+</div>

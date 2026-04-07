@@ -1,0 +1,11 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <div class="d-flex flex-column justify-content-center align-items-center" style="height: 100vh;">
+        <h1 class="mb-4">Bienvenue sur ma Todo App</h1>
+        <p class="mb-4">Cliquez ci-dessous pour accéder à votre liste de tâches.</p>
+        <a href="{{ path('todo_index') }}" class="btn btn-primary btn-lg">
+            Voir Todo List
+        </a>
+    </div>
+{% endblock %}
