@@ -33,8 +33,8 @@ class Todo
     #[LiveProp(writable: true)]
     public string $newTodo = '';
 
-    #[LiveProp(writable: true)]
-    public string $search = '';
+    #[LiveProp(writable: true, url: true)]
+    public ?string $search = null;
 
     #[LiveProp(writable: true)]
     public ?int $editingId = null;
@@ -62,11 +62,14 @@ class Todo
     public function loadTodos(): void
     {
         $request = $this->requestStack->getCurrentRequest();
-        $this->page = $request ? max(1, (int) $request->query->get('page', 1)) : 1;
-        $this->search = $request ? (string) $request->query->get('search', '') : '';
 
+        if ($request) {
+            $this->page = max(1, (int) $request->query->get('page', 1));
+        }
+        
         $qb = $this->todosRepository->createQueryBuilder('t');
 
+        // Filtre recherche
         if ($this->search !== '') {
             $qb->andWhere('t.title LIKE :search')
                ->setParameter('search', '%' . $this->search . '%');
@@ -86,7 +89,6 @@ class Todo
             ->getSingleScalarResult();
 
         $this->completedCount = $this->totalTodos - $this->remaining;
-
         $this->totalPages = (int) ceil($this->totalTodos / self::PER_PAGE) ?: 1;
 
         // Sécurité page
@@ -103,11 +105,9 @@ class Todo
             ->getResult();
     }
 
-    // ==================== SEARCH EVENT ====================
-    #[LiveListener('searchUpdated')]
-    public function onSearchUpdated(string $search): void
+    // Optionnel : réinitialise la page à 1 quand la recherche change
+    public function updatedSearch(string $newValue): void
     {
-        $this->search = $search;
         $this->page = 1;
     }
  
@@ -147,7 +147,7 @@ class Todo
     #[LiveAction]
     public function clearSearch(): void
     {
-        $this->search = '';
+        $this->search = null;
         $this->page = 1;
         $this->loadTodos();   
     }
