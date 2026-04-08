@@ -8,7 +8,30 @@
         completed: this.completedCount
     }) }}
 
-   {{ component('TodoSearchForm', { search: this.search }) }}
+    <!-- Barre de recherche -->
+    <div class="d-flex flex-column flex-lg-row gap-2 mb-4">
+        <div class="flex-grow-1">
+            <div class="input-group">
+                <input
+                    type="text"
+                    class="form-control"
+                    placeholder="Rechercher une tâche..."
+                    data-model="debounce(300)|search"
+                    value="{{ this.search ?? '' }}"
+                >
+            </div>
+        </div>
+
+        {% if this.search is not empty %}
+            <button
+                type="button"
+                class="btn btn-outline-danger"
+                {{ live_action('clearSearch') }}
+            >
+                <i class="bi bi-x-lg"></i> Effacer
+            </button>
+        {% endif %}
+    </div>
 
     <!-- Liste des tâches -->
     <ul class="list-group mb-5">
@@ -96,7 +119,8 @@
                 <!-- Previous -->
                 <li class="page-item {% if this.page <= 1 %}disabled{% endif %}">
                     <a class="page-link"
-                       href="?page={{ this.page - 1 }}&search={{ this.search }}">
+                       href="{{ path('todo_index') }}?page={{ this.page - 1 }}"
+                    >
                         &lt;
                     </a>
                 </li>
@@ -104,7 +128,8 @@
                 {% for p in 1..this.totalPages %}
                     <li class="page-item {% if p == this.page %}active{% endif %}">
                         <a class="page-link"
-                           href="?page={{ p }}&search={{ this.search }}">
+                           href="{{ path('todo_index') }}?page={{ p }}"
+                        >
                             {{ p }}
                         </a>
                     </li>
@@ -113,7 +138,8 @@
                 <!-- Next -->
                 <li class="page-item {% if this.page >= this.totalPages %}disabled{% endif %}">
                     <a class="page-link"
-                       href="?page={{ this.page + 1 }}&search={{ this.search }}">
+                       href="{{ path('todo_index') }}?page={{ this.page + 1 }}"
+                    >
                         &gt;
                     </a>
                 </li>
