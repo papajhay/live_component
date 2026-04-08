@@ -11,16 +11,23 @@ use Symfony\UX\LiveComponent\Attribute\LiveArg;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\Attribute\PostHydrate;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
+use Symfony\UX\LiveComponent\Attribute\LiveListener;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 #[AsLiveComponent('Todo')]
 class Todo
 {
     use DefaultActionTrait;
 
+    private const PER_PAGE = 5;
+
     public function __construct(
         private readonly TodosRepository $todosRepository,
-        private readonly EntityManagerInterface $em
+        private readonly EntityManagerInterface $em,
+        private readonly RequestStack $requestStack
     ) {}
+
+    private int $limit = 5;
 
     // ==================== Propriétés Live ====================
     #[LiveProp(writable: true)]
@@ -35,11 +42,15 @@ class Todo
     #[LiveProp(writable: true)]
     public string $editingTitle = '';
 
+    #[LiveProp(writable: true)]
+    public int $page = 1;
+
     // Données
     public array $todos = [];
     public int $totalTodos = 0;
     public int $remaining = 0;
     public int $completedCount = 0;
+    public int $totalPages = 1;
 
     // ==================== Initialisation & Chargement ====================
     public function mount(): void
@@ -50,22 +61,56 @@ class Todo
     #[PostHydrate]
     public function loadTodos(): void
     {
-        $query = $this->todosRepository->createQueryBuilder('t');
+        $request = $this->requestStack->getCurrentRequest();
+        $this->page = $request ? max(1, (int) $request->query->get('page', 1)) : 1;
+        $this->search = $request ? (string) $request->query->get('search', '') : '';
+
+        $qb = $this->todosRepository->createQueryBuilder('t');
 
         if ($this->search !== '') {
-            $query->andWhere('t.title LIKE :search')
-                  ->setParameter('search', '%' . $this->search . '%');
+            $qb->andWhere('t.title LIKE :search')
+               ->setParameter('search', '%' . $this->search . '%');
         }
 
-        $this->todos = $query->orderBy('t.createdAt', 'DESC')
-                             ->getQuery()
-                             ->getResult();
+        // Count total
+        $countQb = clone $qb;
+        $this->totalTodos = (int) $countQb->select('COUNT(t.id)')->getQuery()->getSingleScalarResult();
 
-        $this->totalTodos = count($this->todos);
-        $this->remaining = count(array_filter($this->todos, fn($t) => !$t->isDone()));
+        // Compter remaining et completed sur TOUTE la table, pas sur la page
+        $remainingQb = clone $qb;
+        $this->remaining = (int) $remainingQb
+            ->select('COUNT(t.id)')
+            ->andWhere('t.done = :done')
+            ->setParameter('done', false)
+            ->getQuery()
+            ->getSingleScalarResult();
+
         $this->completedCount = $this->totalTodos - $this->remaining;
+
+        $this->totalPages = (int) ceil($this->totalTodos / self::PER_PAGE) ?: 1;
+
+        // Sécurité page
+        if ($this->page < 1) $this->page = 1;
+        if ($this->page > $this->totalPages) $this->page = $this->totalPages;
+
+        // Requête paginée
+        $this->todos = $qb
+            ->orderBy('t.createdAt', 'DESC')
+            ->addOrderBy('t.id', 'DESC')
+            ->setFirstResult(self::PER_PAGE * ($this->page - 1))
+            ->setMaxResults(self::PER_PAGE)
+            ->getQuery()
+            ->getResult();
     }
 
+    // ==================== SEARCH EVENT ====================
+    #[LiveListener('searchUpdated')]
+    public function onSearchUpdated(string $search): void
+    {
+        $this->search = $search;
+        $this->page = 1;
+    }
+ 
     // ==================== Actions ====================
     #[LiveAction]
     public function addTodo(): void
@@ -87,6 +132,7 @@ class Todo
         // Réinitialisation du champ
         $this->newTodo = '';
 
+        $this->page = 1;
         // IMPORTANT : on recharge les données pour que LiveComponent mette à jour l'interface
         $this->loadTodos();
     }
@@ -102,6 +148,7 @@ class Todo
     public function clearSearch(): void
     {
         $this->search = '';
+        $this->page = 1;
         $this->loadTodos();   
     }
 
@@ -162,4 +209,5 @@ class Todo
         $this->editingId = null;
         $this->editingTitle = '';
     }
+  
 }

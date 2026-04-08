@@ -87,4 +87,38 @@
     <!-- Ajout d'une nouvelle tâche -->
      {#<twig:TodoForm/>#}
      {{ component('TodoForm') }}
+
+    {# ====================== PAGINATION ====================== #}
+    {% if this.totalPages > 1 %}
+        <div class="d-flex justify-content-center mt-5">
+            <ul class="pagination">
+
+                <!-- Previous -->
+                <li class="page-item {% if this.page <= 1 %}disabled{% endif %}">
+                    <a class="page-link"
+                       href="?page={{ this.page - 1 }}&search={{ this.search }}">
+                        &lt;
+                    </a>
+                </li>
+
+                {% for p in 1..this.totalPages %}
+                    <li class="page-item {% if p == this.page %}active{% endif %}">
+                        <a class="page-link"
+                           href="?page={{ p }}&search={{ this.search }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                {% endfor %}
+
+                <!-- Next -->
+                <li class="page-item {% if this.page >= this.totalPages %}disabled{% endif %}">
+                    <a class="page-link"
+                       href="?page={{ this.page + 1 }}&search={{ this.search }}">
+                        &gt;
+                    </a>
+                </li>
+
+            </ul>
+        </div>
+    {% endif %}
 </div>
